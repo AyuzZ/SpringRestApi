@@ -5,8 +5,6 @@ import com.example.springrestapi.service.impl.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
-import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -31,7 +29,7 @@ public class SecurityConfig{
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception{
         http
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/admin","/admin/", "/delete/**", "/role/").hasRole("ADMIN")
+                        .requestMatchers("/admin","/admin/", "/delete/**").hasRole("ADMIN") //, "/role/"
                         .requestMatchers("/user/**", "/user/**").hasRole("USER")
                         .anyRequest().permitAll()
                 )
@@ -57,12 +55,12 @@ public class SecurityConfig{
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    @Bean
-    static RoleHierarchy roleHierarchy(){
-        return RoleHierarchyImpl.withDefaultRolePrefix()
-                .role("ADMIN").implies("USER")
-                .build();
-    }
+//    @Bean
+//    static RoleHierarchy roleHierarchy(){
+//        return RoleHierarchyImpl.withDefaultRolePrefix()
+//                .role("ADMIN").implies("USER")
+//                .build();
+//    }
 
 
 }

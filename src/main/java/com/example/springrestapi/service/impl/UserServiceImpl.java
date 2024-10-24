@@ -18,36 +18,22 @@ public class UserServiceImpl implements UserService{
     private UserRepository userRepository;
 
     @Override
-    public boolean doesUserExist(String username) {
-        Optional<User> optionalUser = userRepository.findUserByUsername(username);
-        return optionalUser.isPresent();
-    }
-
-    @Override
     public User createUser(User user) {
-        boolean doesUserExist = doesUserExist(user.getUsername());
-        if(doesUserExist){
+        Optional<User> optionalUser = userRepository.findUserByUsername(user.getUsername());
+        if(optionalUser.isPresent()){
             throw new UserExistsException("User Already Exists.");
         }else {
-//            try{
               return userRepository.save(user);
-//                return true;
-//            }catch (Exception e){
-//                return false;
-//            }
         }
     }
 
     @Override
     public User getUser(String username) {
-        boolean doesUserExist = doesUserExist(username);
-        if(!doesUserExist){
-            throw new UsernameNotFoundException("User Not Found.");
-        }else{
-            Optional<User> optionalUser = userRepository.findUserByUsername(username);
-            User user = optionalUser.get();
-            return user;
+        Optional<User> optionalUser = userRepository.findUserByUsername(username);
+        if(optionalUser.isPresent()){
+            return optionalUser.get();
         }
+        throw new UsernameNotFoundException("User Not Found.");
     }
 
     @Override
@@ -57,18 +43,12 @@ public class UserServiceImpl implements UserService{
 
     @Override
     public User updateUser(User user) {
-//        try{
         return userRepository.save(user);
-//            return true;
-//        }catch (Exception e){
-//            return false;
-//        }
     }
 
     @Override
-    public boolean deleteUser(String username) {
+    public void deleteUser(String username) {
         userRepository.deleteUserByUsername(username);
-        return true;
     }
 
 }

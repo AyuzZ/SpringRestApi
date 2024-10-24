@@ -1,5 +1,6 @@
 package com.example.springrestapi.controller;
 
+import com.example.springrestapi.exceptions.UserExistsException;
 import com.example.springrestapi.model.Role;
 import com.example.springrestapi.model.User;
 import com.example.springrestapi.service.RoleService;
@@ -18,6 +19,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -43,28 +45,48 @@ public class UserController {
 
     @GetMapping({"", "/"})
     public ResponseEntity<?> getHome(){
-        return new ResponseEntity<>("Log in to an account to see your details.", HttpStatus.OK);
+        List<String> endpoints = new ArrayList<>();
+        endpoints.add("Available Endpoints:");
+        endpoints.add("/createUser/ - POST");
+        endpoints.add("/login/ - POST");
+        endpoints.add("/user/ - GET, PUT");
+        endpoints.add("/admin/ - GET");
+        endpoints.add("/delete/{username} - DELETE");
+        endpoints.add("/role/ - GET, PUT");
+        return new ResponseEntity<>(endpoints, HttpStatus.OK);
     }
 
     @PostMapping("/createUser/")
     public ResponseEntity<?> createUser(@RequestBody User user){
         //If the user exists or not is checked in UserServiceImpl
 
+        //Note to self - encrypting pw and getting role then checking if the username is taken or not feels backward.
+
+        //Encrypting the password
         BCryptPasswordEncoder pwEncoder = new BCryptPasswordEncoder();
         String encryptedPassword = pwEncoder.encode(user.getPassword());
         user.setPassword(encryptedPassword);
 
+        //Checking if role USER exists
         Role userRole = roleService.getRole("USER");
-        if (userRole == null) {
-            throw new RuntimeException("Role not found");
+        try{
+            if (userRole == null) {
+                throw new RuntimeException("Role not found");
+            }
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
+
+        //Adding the Role to user's Role
         user.getRoles().add(userRole);
 
-//        boolean createdResult = userService.createUser(user);
-        User createdUser = userService.createUser(user);
-//        if (createdResult)
-            return new ResponseEntity<>("User Created.", HttpStatus.CREATED);
-//        return new ResponseEntity<>("User Creation Failed.", HttpStatus.BAD_REQUEST);
+        try{
+            User createdUser = userService.createUser(user);
+        }catch (UserExistsException e){
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+
+        return new ResponseEntity<>("User Created. Login to view your details.", HttpStatus.CREATED);
     }
 
     @PostMapping("/login/")
@@ -82,58 +104,84 @@ public class UserController {
     }
 
 
-    //User Access
+    //User and Admin has Access to the following endpoints.
 
     @GetMapping("/user/")
-    public ResponseEntity<User> getUser(){
+    public ResponseEntity<?> getUser(){
+        //Getting username of logged-in user from security context holder
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
 
-        User user = userService.getUser(username);
-        return new ResponseEntity<>(user, HttpStatus.OK);
+        //Do we need to catch username not found exception here!?
+        //since we are getting username from the Logged-in User, the user/name always exists.
+        try{
+            //Getting the user from DB
+            User user = userService.getUser(username);
+            return new ResponseEntity<>(user, HttpStatus.OK);
+        }catch (UsernameNotFoundException e){
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
     }
 
     @PutMapping("/user/")
     public ResponseEntity<?> updateUser(@RequestBody User user){
+        //Getting username of logged-in user from security context holder
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
 
+        //Getting the existing details of the user from the DB
         User existingUser = userService.getUser(username);
 
+        //Updating First and Last Name with the newly provided one
         existingUser.setFirstName(user.getFirstName());
         existingUser.setLastName(user.getLastName());
 
-//        boolean updateUserResult = userService.updateUser(existingUser);
-        User updatedUser = userService.updateUser(existingUser);
-
-//        if (updateUserResult)
-            return new ResponseEntity<>("User Updated.", HttpStatus.OK);
-//        return new ResponseEntity<>("User Update Failed.", HttpStatus.BAD_REQUEST);
+        //Calling update method
+        try{
+            User updatedUser = userService.updateUser(existingUser);
+        }catch (Exception e){
+            return new ResponseEntity<>("User Update Failed. Because of: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+        return new ResponseEntity<>("User Updated.", HttpStatus.OK);
     }
 
 
-    //Admin Access
+    //Only Admin has access to the following endpoints.
 
     @GetMapping({"/admin", "/admin/"})
-    public ResponseEntity<List<User>> getAllUsers(){
-        List<User> userList = userService.getUsers();
-        return new ResponseEntity<>(userList, HttpStatus.OK);
+    public ResponseEntity<?> getAllUsers(){
+        try {
+            List<User> userList = userService.getUsers();
+            return new ResponseEntity<>(userList, HttpStatus.OK);
+        }catch (Exception e){
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+
     }
 
     @DeleteMapping("/delete/{username}")
     public ResponseEntity<?> deleteUser(@PathVariable String username){
-        User user = userService.getUser(username);
-        if(user == null){
-            throw new UsernameNotFoundException("User Not Found.");
+        User user;
+
+        //Checking if user exists.
+        try{
+            user = userService.getUser(username);
+        }catch (UsernameNotFoundException e){
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
+
+        //Clearing user from the user_roles table too.
         List<Role> roles = user.getRoles();
         for (Role role : roles) {
             role.getUsers().clear();
         }
-        boolean isDeleted = userService.deleteUser(username);
-        if(isDeleted)
-            return new ResponseEntity<>("User Deleted.", HttpStatus.NO_CONTENT);
-        else
-            return new ResponseEntity<>("User Could Not Be Deleted.", HttpStatus.NOT_FOUND);
+
+        //Deleting the user
+        try {
+            userService.deleteUser(username);
+            return new ResponseEntity<>("User Deleted.", HttpStatus.OK);
+        }catch (Exception e){
+            return new ResponseEntity<>("User Could Not Be Deleted. Exception: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
     }
 }

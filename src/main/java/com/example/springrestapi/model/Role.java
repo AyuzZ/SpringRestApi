@@ -1,5 +1,6 @@
 package com.example.springrestapi.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToMany;
@@ -16,6 +17,7 @@ public class Role {
     private int rid;
     private String name;
     @ManyToMany(mappedBy = "roles")
+    @JsonIgnore
     private List<User> users = new ArrayList<User>();
 
     public int getRid() {

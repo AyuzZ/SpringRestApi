@@ -6,8 +6,6 @@ import java.util.List;
 
 public interface UserService {
 
-    boolean doesUserExist(String username);
-
     User createUser(User user);
 
     User getUser(String username);
@@ -16,6 +14,6 @@ public interface UserService {
 
     User updateUser(User user);
 
-    boolean deleteUser(String username);
+    void deleteUser(String username);
 
 }
