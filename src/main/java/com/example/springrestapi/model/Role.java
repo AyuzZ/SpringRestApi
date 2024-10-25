@@ -20,6 +20,11 @@ public class Role {
     @JsonIgnore
     private List<User> users = new ArrayList<User>();
 
+    public Role(int rid, String name){
+        this.rid = rid;
+        this.name = name;
+    }
+
     public int getRid() {
         return rid;
     }
